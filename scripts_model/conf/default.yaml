@@ -69,7 +69,7 @@ train:
     save_last: False
 
   every_n_epochs_checkpoint:
-    every_n_epochs: 100
+    every_n_epochs: 10
     save_top_k: -1
     verbose: False
     save_last: False
@@ -79,7 +79,7 @@ val:
 
 test:
   compute_nll: false
-  compute_loss: true
+  compute_loss: False
 
 integrate:
   div_mode: rademacher  # "exact" is an alternative
