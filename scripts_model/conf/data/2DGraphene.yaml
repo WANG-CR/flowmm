@@ -1,6 +1,6 @@
-dataset_name: carbon
+dataset_name: 2DGraphene
 dim_coords: 3
-root_path: ${oc.env:PROJECT_ROOT}/data/carbon_24
+root_path: /data/chuanrui/data/crystal/cif/graphene
 prop: energy_per_atom
 num_targets: 1
 # prop: scaled_lattice
@@ -11,7 +11,7 @@ graph_method: crystalnn
 lattice_scale_method: scale_length
 preprocess_workers: 30
 readout: mean
-max_atoms: 24
+max_atoms: 72
 otf_graph: false
 eval_model_name: carbon
 tolerance: 0.1
@@ -30,8 +30,9 @@ datamodule:
     train:
       _target_: diffcsp.pl_data.dataset.Cryst2DDataset
       name: Formation energy train
-      path: ${data.root_path}/train.csv
-      save_path: ${data.root_path}/train_ori.pt
+      path: ${data.root_path}
+      stage: train
+      save_path: ${data.root_path}/train.pt
       prop: ${data.prop}
       niggli: ${data.niggli}
       primitive: ${data.primitive}
@@ -45,7 +46,8 @@ datamodule:
     val:
       - _target_: diffcsp.pl_data.dataset.Cryst2DDataset
         name: Formation energy val
-        path: ${data.root_path}/val.csv
+        path: ${data.root_path}
+        stage: valid
         save_path: ${data.root_path}/val_ori.pt
         prop: ${data.prop}
         niggli: ${data.niggli}
@@ -60,7 +62,8 @@ datamodule:
     test:
       - _target_: diffcsp.pl_data.dataset.Cryst2DDataset
         name: Formation energy test
-        path: ${data.root_path}/test.csv
+        path: ${data.root_path}
+        stage: valid
         save_path: ${data.root_path}/test_ori.pt
         prop: ${data.prop}
         niggli: ${data.niggli}
@@ -78,6 +81,6 @@ datamodule:
     test: 40
 
   batch_size:
-    train: 256
-    val: 1024
-    test: 512
+    train: 32
+    val: 32
+    test: 16

@@ -465,7 +465,7 @@ if __name__ == "__main__":
     # else:
     #     stats = OmegaConf.load(str(file))
     # density
-    compute_stats = False
+    compute_stats = True
     file = Path(__file__).parent / "atom_density.yaml"
     file = file.resolve()
     if compute_stats:
