@@ -74,10 +74,20 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
             cost_type = cfg.model.cost_type
             cost_cross_ent = cfg.model.cost_cross_ent
 
+        # adding null to lattice manifold
+        if "null" in cfg.model.manifold_getter.lattice_manifold:
+            cost_lattice = 0.0
+            warnings.warn(
+                f"since {cfg.model.manifold_getter.lattice_manifold=}, set {cost_lattice=}",
+                PossibleUserWarning,
+            )
+        else:
+            cost_lattice = cfg.model.cost_lattice
+
         self.costs = {
             "loss_a": cost_type,
             "loss_f": cfg.model.cost_coord,
-            "loss_l": cfg.model.cost_lattice,
+            "loss_l": cost_lattice,
             "loss_ce": cost_cross_ent,
         }
         if cfg.model.affine_combine_costs:
