@@ -943,6 +943,7 @@ def _reconstruction_metrics_wandb(
             consolidated_reconstruction_path,
             multi_eval=True,
             metrics_path=target_dir / f"old_eval_metrics_reconstruct_multi.json",
+            target_dir=target_dir,
             ground_truth_path=None,  # unnecessary since we save this when we consolidate
         )
         recon_metrics.update(
@@ -954,6 +955,7 @@ def _reconstruction_metrics_wandb(
             consolidated_reconstruction_path,
             multi_eval=False,
             metrics_path=target_dir / f"old_eval_metrics_reconstruct_single.json",
+            target_dir=None,
             ground_truth_path=None,  # unnecessary since we save this when we consolidate
         )
         recon_metrics.update(
@@ -1048,7 +1050,7 @@ def old_eval_metrics(
     print(f"")
 
     consolidated_generation_path = target_dir / _get_consolidated_path(
-        target_dir, "generate"
+        target_dir, "reconstruct"
     )
     if consolidated_generation_path.exists():
         cfg = load_cfg(checkpoint)

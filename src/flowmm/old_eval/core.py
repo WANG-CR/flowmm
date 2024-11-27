@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pdb
 import json
 import os
 import sys
@@ -390,6 +391,7 @@ def get_Crystal_obj_lists(
                     total=len(crys_array_list),
                 )
             )
+
     else:
         num_evals = 1
         pred_crys = joblib_map(
@@ -401,6 +403,7 @@ def get_Crystal_obj_lists(
             total=len(crys_array_list),
         )
 
+    # pdb.set_trace()
     return pred_crys, gt_crys, num_evals
 
 

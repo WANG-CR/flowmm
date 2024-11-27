@@ -24,11 +24,12 @@ COV_Cutoffs = {
 
 
 class GenEval(object):
-    def __init__(self, pred_crys, gt_crys, n_samples=1000, eval_model_name=None):
+    def __init__(self, pred_crys, gt_crys, n_samples=90, eval_model_name=None):
         self.crys = pred_crys
         self.gt_crys = gt_crys
-        self.n_samples = n_samples
+        self.n_samples = 90
         self.eval_model_name = eval_model_name
+        n_samples = 90
 
         valid_crys = [c for c in pred_crys if c.valid]
         if len(valid_crys) >= n_samples:

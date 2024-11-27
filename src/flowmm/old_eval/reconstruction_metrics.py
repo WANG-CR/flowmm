@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-
+import os
 import numpy as np
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from tqdm import tqdm
@@ -89,6 +89,7 @@ def compute_reconstruction_metrics(
     path: Path,
     multi_eval: bool,
     metrics_path: Path,
+    target_dir: Path,
     ground_truth_path: Path | None = None,
 ) -> tuple[dict[str, float], int]:
     all_metrics = {}
@@ -97,6 +98,13 @@ def compute_reconstruction_metrics(
         multi_eval,
         ground_truth_path,
     )
+
+    if target_dir:
+        cif_path = os.path.join(target_dir, 'cif_recon')
+        os.makedirs(cif_path, exist_ok=True)
+        for i, crystals in enumerate(pred_crys[0]):
+            crystals.structure.to(f"{cif_path}/{i}.cif")
+
     if multi_eval:
         rec_evaluator = RecEvalBatch(pred_crys, gt_crys)
     else:
