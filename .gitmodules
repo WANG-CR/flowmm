@@ -1,9 +1,9 @@
 [submodule "remote/cdvae"]
 	path = remote/cdvae
-	url = git@github.com:bkmi/cdvae.git
+	url = https://github.com/WANG-CR/cdvae.git
 [submodule "remote/riemannian-fm"]
 	path = remote/riemannian-fm
-	url = git@github.com:facebookresearch/riemannian-fm.git
+	url = https://github.com/WANG-CR/riemannian-fm.git
 [submodule "remote/DiffCSP-official"]
 	path = remote/DiffCSP-official
-	url = git@github.com:bkmi/DiffCSP-official.git
+	url = https://github.com/WANG-CR/DiffCSP-official.git
