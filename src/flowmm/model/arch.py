@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-
+import pdb
 import torch
 from geoopt import Manifold
 from torch import nn
@@ -348,6 +348,8 @@ class CSPNet(DiffCSPNet):
                 )
             else:
                 frac_diff = frac_coords[fc_edges[1]] - frac_coords[fc_edges[0]]
+
+            # pdb.set_trace()
             return fc_edges, frac_diff
         elif self.edge_style == "knn":
             _lattices = self._convert_lin_to_lattice(lattices)
@@ -378,6 +380,7 @@ class CSPNet(DiffCSPNet):
                 edge_index, to_jimages, num_bonds, distance_vectors
             )
 
+            # pdb.set_trace()
             return edge_index_new, -edge_vector_new
 
     def _convert_lin_to_lattice(self, lattice: torch.Tensor) -> torch.Tensor:
@@ -586,6 +589,9 @@ class ProjectedConjugatedCSPNet(nn.Module):
             lattice_out = lattice_out * self.lat_u_t_std + self.lat_u_t_mean
         if hasattr(self, "coord_u_t_std"):
             coord_out = coord_out * self.coord_u_t_std + self.coord_u_t_mean
+
+        if not self.manifold_getter.predict_lattice:
+            lattice_out = lattice_out * 0.0
 
         if not self.manifold_getter.predict_atom_types:
             if self.cspnet.self_cond:

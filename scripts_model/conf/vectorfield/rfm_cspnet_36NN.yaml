@@ -5,7 +5,7 @@ num_layers: 6
 act_fn: silu
 dis_emb: sin
 num_freqs: 128
-edge_style: fc
+edge_style: knn
 max_neighbors: 36
 cutoff: 7.
 ln: true
