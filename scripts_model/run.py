@@ -153,16 +153,32 @@ def run(cfg: DictConfig) -> None:
     yaml_conf: str = OmegaConf.to_yaml(cfg=cfg)
     (hydra_dir / "hparams.yaml").write_text(yaml_conf)
 
-    # Load checkpoint (if exist)
-    ckpts = list(hydra_dir.glob("*.ckpt"))
-    if len(ckpts) > 0:
-        ckpt_epochs = np.array(
-            [int(ckpt.parts[-1].split("-")[0].split("=")[1]) for ckpt in ckpts]
-        )
-        ckpt = str(ckpts[ckpt_epochs.argsort()[-1]])
-        hydra.utils.log.info(f"found checkpoint: {ckpt}")
+    ckpt = cfg.train.get("resume_from_checkpoint", None)
+    if ckpt:
+        hydra.utils.log.info(f"Resuming from specified checkpoint: {ckpt}")
     else:
-        ckpt = None
+        # Default behavior to auto-detect checkpoint
+        ckpts = list(hydra_dir.glob("*.ckpt"))
+        if len(ckpts) > 0:
+            ckpt_epochs = np.array(
+                [int(ckpt.parts[-1].split("-")[0].split("=")[1]) for ckpt in ckpts]
+            )
+            ckpt = str(ckpts[ckpt_epochs.argsort()[-1]])
+            hydra.utils.log.info(f"Found checkpoint: {ckpt}")
+
+        else:
+            ckpt = None
+        
+    # Load checkpoint (if exist)
+    # ckpts = list(hydra_dir.glob("*.ckpt"))
+    # if len(ckpts) > 0:
+    #     ckpt_epochs = np.array(
+    #         [int(ckpt.parts[-1].split("-")[0].split("=")[1]) for ckpt in ckpts]
+    #     )
+    #     ckpt = str(ckpts[ckpt_epochs.argsort()[-1]])
+    #     hydra.utils.log.info(f"found checkpoint: {ckpt}")
+    # else:
+    #     ckpt = None
 
     hydra.utils.log.info("Instantiating the Trainer")
     trainer = pl.Trainer(

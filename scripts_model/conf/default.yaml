@@ -39,7 +39,8 @@ train:
   # reproducibility
   deterministic: warn
   random_seed: 42
-
+  resume_from_checkpoint: false
+  # '/root/code/flowmm/runs/trash/2024-11-26/12-14-57/null_params-rfm_cspnet-ov0hf4id/every_n_epochs/epoch=4999-step=40000.ckpt'
   # training
   pl_trainer:
     fast_dev_run: False # Enable this for debug purposes
