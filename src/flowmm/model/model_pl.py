@@ -5,7 +5,7 @@ from __future__ import annotations
 import warnings
 from functools import partial
 from typing import Any, Literal
-
+import pdb
 import hydra
 import pytorch_lightning as pl
 import torch
@@ -75,7 +75,8 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
             cost_cross_ent = cfg.model.cost_cross_ent
 
         # adding null to lattice manifold
-        if "null" in cfg.model.manifold_getter.lattice_manifold:
+        if "length_angle_point_manifold" in cfg.model.manifold_getter.lattice_manifold:
+            # pdb.set_trace()
             cost_lattice = 0.0
             warnings.warn(
                 f"since {cfg.model.manifold_getter.lattice_manifold=}, set {cost_lattice=}",
@@ -98,16 +99,27 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
             self.cfg.vectorfield, _convert_="partial"
         )
         # Model of the vector field.
-        cspnet = ProjectedConjugatedCSPNet(
-            cspnet=model,
-            manifold_getter=self.manifold_getter,
-            lattice_affine_stats=get_affine_stats(
-                cfg.data.dataset_name, self.manifold_getter.lattice_manifold
-            ),
-            coord_affine_stats=get_affine_stats(
-                cfg.data.dataset_name, self.manifold_getter.coord_manifold
-            ),
-        )
+        if cfg.model.manifold_getter.lattice_manifold=="length_angle_point_manifold":
+            cspnet = ProjectedConjugatedCSPNet(
+                cspnet=model,
+                manifold_getter=self.manifold_getter,
+                lattice_affine_stats=None,
+                coord_affine_stats=get_affine_stats(
+                    cfg.data.dataset_name, self.manifold_getter.coord_manifold
+                ),
+            )
+        else:
+            cspnet = ProjectedConjugatedCSPNet(
+                cspnet=model,
+                manifold_getter=self.manifold_getter,
+                lattice_affine_stats=get_affine_stats(
+                    cfg.data.dataset_name, self.manifold_getter.lattice_manifold
+                ),
+                coord_affine_stats=get_affine_stats(
+                    cfg.data.dataset_name, self.manifold_getter.coord_manifold
+                ),
+            )
+
         if cfg.optim.get("ema_decay", None) is None:
             self.model = cspnet
         else:
@@ -609,6 +621,8 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         # our model cannot predict it, so keeping it in inflates the loss
         u_t = manifold.proju(x_t, u_t)
 
+        # pdb.set_trace()
+
         cond = None
         if self.cfg.model.self_cond:
             with torch.no_grad():
@@ -626,6 +640,8 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
 
         u_t_pred = vecfield(t=t, x=x_t, manifold=manifold, cond=cond)
         diff = u_t_pred - u_t
+
+        # pdb.set_trace()
 
         max_num_atoms = mask_a_or_f.size(-1)
         dim_a_per_atom = dims.a / max_num_atoms

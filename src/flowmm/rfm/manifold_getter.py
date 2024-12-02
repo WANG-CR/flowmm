@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections import namedtuple
 from typing import Literal
-
+import pdb
 import numpy as np
 import torch
 from torch_geometric.utils import to_dense_batch
@@ -31,7 +31,7 @@ from flowmm.rfm.manifolds.flat_torus import (
     MaskedNoDriftFlatTorus01,
     MaskedNoDriftFlatTorus01WrappedNormal,
 )
-from flowmm.rfm.manifolds.lattice_params import LatticeParams, LatticeParamsNormalBase
+from flowmm.rfm.manifolds.lattice_params import LatticeParams, LatticeParamsNormalBase, LatticeParamsEuclidean, LengthAnglePointManifold
 from flowmm.rfm.manifolds.spd import (
     SPDGivenN,
     lattice_params_to_spd_vector,
@@ -69,6 +69,8 @@ lattice_manifold_types = Literal[
     "spd_riemanian_geo",
     "lattice_params",
     "lattice_params_normal_base",
+    "null_lattice_params",
+    "length_angle_point_manifold"
 ]
 
 
@@ -95,6 +97,11 @@ class ManifoldGetter(torch.nn.Module):
     @property
     def predict_atom_types(self):
         return False if self.atom_type_manifold == "null_manifold" else True
+
+    @property
+    def predict_lattice(self):
+        fix_lattice = ["length_angle_point_manifold", "null_lattice_params"]
+        return False if self.lattice_manifold in fix_lattice else True
 
     @staticmethod
     def _atomic_one_hot(a: torch.LongTensor) -> torch.LongTensor:
@@ -139,6 +146,11 @@ class ManifoldGetter(torch.nn.Module):
         atom_types: torch.LongTensor,
         frac_coords: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.BoolTensor]:
+    # batch assigns each node to a specific example
+    # Given a sparse batch of node features in shape R ^ (N1+N2+...NB)*d, the ni represent the nodes
+    #  in i-th graph in the batch
+    # we create a dense node feature tensor in shape R ^ (B*Nmax*F), and a corresponding mask of shape {0,1} ^ B*Nmax
+    #  is returned, holding information about the existence of fake-nodes in the dense representation.
         a, mask_a_or_f = to_dense_batch(
             x=atom_types, batch=batch
         )  # B x N x NUM_ATOMIC_TYPES, B x N
@@ -184,6 +196,7 @@ class ManifoldGetter(torch.nn.Module):
         *manifolds, dims = self.get_manifolds(
             num_atoms,
             atom_types_dense_one_hot=a,
+            lattice=lattices,
             dim_coords=frac_coords.shape[-1],
             split_manifold=split_manifold,
         )
@@ -234,8 +247,12 @@ class ManifoldGetter(torch.nn.Module):
         elif self.lattice_manifold == "lattice_params":
             lattices_deg = LatticeParams.cat(lengths, angles)
             lattices = LatticeParams().deg2uncontrained(lattices_deg)
+        elif self.lattice_manifold == "lattice_params_euclidean":
+            lattices = LatticeParamsEuclidean.cat(lengths, angles)
         elif self.lattice_manifold == "lattice_params_normal_base":
             lattices = LatticeParams.cat(lengths, angles)
+        elif self.lattice_manifold == "length_angle_point_manifold":
+            lattices = LengthAnglePointManifold.cat(lengths, angles)
         else:
             raise NotImplementedError()
 
@@ -275,7 +292,7 @@ class ManifoldGetter(torch.nn.Module):
         )  # B x N
         num_atoms = self._get_num_atoms(mask_a_or_f)
         *manifolds, dims = self.get_manifolds(
-            num_atoms, None, dim_coords, split_manifold=split_manifold
+            num_atoms, None, None, dim_coords, split_manifold=split_manifold
         )
         return (len(num_atoms), sum(dims)), *manifolds, dims, mask_a_or_f
 
@@ -304,6 +321,7 @@ class ManifoldGetter(torch.nn.Module):
         num_atoms = self._get_num_atoms(mask_a_or_f)
         *manifolds, dims = self.get_manifolds(
             num_atoms,
+            None,
             atom_types_dense_one_hot,
             dim_coords,
             split_manifold=split_manifold,
@@ -340,6 +358,7 @@ class ManifoldGetter(torch.nn.Module):
         elif (
             self.lattice_manifold == "lattice_params"
             or self.lattice_manifold == "lattice_params_normal_base"
+            or self.lattice_manifold == "length_angle_point_manifold"
         ):
             l = l.reshape(-1, dims.l)
         else:
@@ -371,8 +390,14 @@ class ManifoldGetter(torch.nn.Module):
             lattices_deg = LatticeParams().uncontrained2deg(lattices)
             lengths, angles_deg = LatticeParams.split(lattices_deg)
             lattices = lattice_params_to_matrix_torch(lengths, angles_deg)
+        elif self.lattice_manifold == "LatticeParamsEuclidean":
+            lengths, angles_deg = LatticeParamsEuclidean.split(lattices)
+            lattices = lattice_params_to_matrix_torch(lengths, angles_deg)
         elif self.lattice_manifold == "lattice_params_normal_base":
             lengths, angles_deg = LatticeParamsNormalBase.split(lattices)
+            lattices = lattice_params_to_matrix_torch(lengths, angles_deg)
+        elif self.lattice_manifold == "length_angle_point_manifold":
+            lengths, angles_deg = LengthAnglePointManifold.split(lattices)
             lattices = lattice_params_to_matrix_torch(lengths, angles_deg)
         else:
             raise NotImplementedError()
@@ -393,6 +418,7 @@ class ManifoldGetter(torch.nn.Module):
     def _get_manifold(
         num_atom: int,
         atom_types_dense_one_hot: torch.Tensor | None,
+        lattice: torch.Tensor | None,
         dim_coords: int,
         max_num_atoms: int,
         batch_idx: int,
@@ -506,9 +532,17 @@ class ManifoldGetter(torch.nn.Module):
         elif lattice_manifold == "lattice_params":
             lp = LatticeParams.from_dataset(dataset, length_inner_coef)
             l_manifold = (lp, LatticeParams.dim(dim_coords))
+        elif lattice_manifold == "null_lattice_params":
+            lp = LatticeParams.from_dataset(dataset, length_inner_coef)
+            l_manifold = (lp, LatticeParams.dim(dim_coords))          
         elif lattice_manifold == "lattice_params_normal_base":
             lp = LatticeParamsNormalBase()
             l_manifold = (lp, LatticeParamsNormalBase.dim(dim_coords))
+        elif lattice_manifold == "length_angle_point_manifold":
+            # pdb.set_trace()
+            lengths, angles = LengthAnglePointManifold.split(lattice[batch_idx])
+            lp = LengthAnglePointManifold(lengths, angles)
+            l_manifold = (lp, LengthAnglePointManifold.dim(dim_coords))
         else:
             raise ValueError(f"{lattice_manifold=} not in {lattice_manifold_types=}")
 
@@ -540,6 +574,7 @@ class ManifoldGetter(torch.nn.Module):
         elif (
             self.lattice_manifold == "lattice_params"
             or self.lattice_manifold == "lattice_params_normal_base"
+            or self.lattice_manifold == "length_angle_point_manifold"
         ):
             dim_l = LatticeParams.dim(dim_coords)
         else:
@@ -551,6 +586,7 @@ class ManifoldGetter(torch.nn.Module):
         self,
         num_atoms: torch.LongTensor,
         atom_types_dense_one_hot: torch.Tensor | None,
+        lattice: torch.Tensor | None,
         dim_coords: int,
         split_manifold: bool,
     ) -> (
@@ -570,6 +606,7 @@ class ManifoldGetter(torch.nn.Module):
             manis = self._get_manifold(
                 num_atom,
                 atom_types_dense_one_hot,
+                lattice,
                 dim_coords,
                 max_num_atoms,
                 batch_idx,

@@ -22,7 +22,7 @@ from flowmm.rfm.manifold_getter import (
     lattice_manifold_types,
 )
 from flowmm.rfm.manifolds.flat_torus import FlatTorus01
-from flowmm.rfm.manifolds.lattice_params import LatticeParams
+from flowmm.rfm.manifolds.lattice_params import LatticeParams, LatticeParamsEuclidean, LengthAnglePointManifold
 from flowmm.rfm.manifolds.spd import SPDGivenN, spd_vector_to_lattice_matrix
 
 
@@ -60,6 +60,8 @@ class CSPLayer(DiffCSPLayer):
         elif (
             lattice_manifold == "lattice_params"
             or lattice_manifold == "lattice_params_normal_base"
+            or lattice_manifold == "lattice_params_euclidean"
+            or lattice_manifold == "length_angle_point_manifold"
         ):
             self.dim_l = LatticeParams.dim(self.n_space)
         elif lattice_manifold == "non_symmetric":
@@ -171,6 +173,8 @@ class CSPLayer(DiffCSPLayer):
         elif (
             self.lattice_manifold == "lattice_params"
             or self.lattice_manifold == "lattice_params_normal_base"
+            or self.lattice_manifold == "lattice_params_euclidean"
+            or self.lattice_manifold == "length_angle_point_manifold"
         ):
             lattices = lattices
         elif self.lattice_manifold == "non_symmetric":
@@ -306,6 +310,8 @@ class CSPNet(DiffCSPNet):
             ("spd" in lattice_manifold)
             or lattice_manifold == "lattice_params"
             or lattice_manifold == "lattice_params_normal_base"
+            or lattice_manifold == "lattice_params_euclidean"
+            or lattice_manifold == "length_angle_point_manifold"
         ):
             self.lattice_out = nn.Linear(
                 num_pools * hidden_dim, SPDGivenN.vecdim(n_space)
@@ -367,6 +373,10 @@ class CSPNet(DiffCSPNet):
                 lattices=_lattices,
             )
 
+            # print(f"cart_coords shape is {cart_coords.shape}")
+            # print(f"edge_index shape is {edge_index.shape}")
+            # print(f"to_jimages shape is {to_jimages.shape}")
+
             j_index, i_index = edge_index
             if self.use_log_map:
                 # this is the shortest torus distance, but DiffCSP didn't use it
@@ -390,9 +400,19 @@ class CSPNet(DiffCSPNet):
             l_deg = LatticeParams().uncontrained2deg(lattice)
             lengths, angles_deg = LatticeParams.split(l_deg)
             l = lattice_params_to_matrix_torch(lengths, angles_deg)
+       
+        elif self.lattice_manifold == "lattice_params_euclidean":
+            lengths, angles_deg = LatticeParamsEuclidean.split(lattice)
+            l = lattice_params_to_matrix_torch(lengths, angles_deg)
+
         elif self.lattice_manifold == "lattice_params_normal_base":
             lengths, angles = LatticeParams.split(lattice)
             l = lattice_params_to_matrix_torch(lengths, angles)
+
+        elif self.lattice_manifold == "length_angle_point_manifold":
+            lengths, angles = LatticeParams.split(lattice)
+            l = lattice_params_to_matrix_torch(lengths, angles)
+
         elif self.lattice_manifold == "non_symmetric":
             l = lattice
         else:
@@ -414,6 +434,7 @@ class CSPNet(DiffCSPNet):
             num_atoms.shape[0], -1
         )  # if there is a single t, repeat for the batch
 
+        # pdb.set_trace()
         # create graph
         edges, frac_diff = self.gen_edges(num_atoms, frac_coords, lattices, node2graph)
         edge2graph = node2graph[edges[0]]
@@ -539,13 +560,16 @@ class ProjectedConjugatedCSPNet(nn.Module):
             mask_a_or_f=mask_a_or_f,
         )
 
+        
         non_zscored_lattice = (
             lattices.clone() if self.cspnet.represent_angle_edge_to_lattice else None
         )
 
         # z-score inputs
-        if hasattr(self, "lat_x_t_mean"):
+        if hasattr(self, "lat_x_t_mean") and self.manifold_getter.predict_lattice:
             lattices = (lattices - self.lat_x_t_mean) / self.lat_x_t_std
+
+        # pdb.set_trace()
 
         if self.self_cond:
             if cond is not None:
@@ -559,7 +583,7 @@ class ProjectedConjugatedCSPNet(nn.Module):
                     if self.cspnet.represent_angle_edge_to_lattice
                     else None
                 )
-                if hasattr(self, "lat_x_t_mean"):
+                if hasattr(self, "lat_x_t_mean") and self.manifold_getter.predict_lattice:
                     l_cond = (l_cond - self.lat_x_t_mean) / self.lat_x_t_std
             else:
                 at_cond = torch.zeros_like(atom_types)
@@ -593,12 +617,15 @@ class ProjectedConjugatedCSPNet(nn.Module):
         if not self.manifold_getter.predict_lattice:
             lattice_out = lattice_out * 0.0
 
+        # pdb.set_trace()
+
         if not self.manifold_getter.predict_atom_types:
             if self.cspnet.self_cond:
                 # remove the extra zeros we appended above
                 types_out, _ = torch.tensor_split(atom_types, 2, dim=-1)
             else:
                 types_out = atom_types
+
         return self.manifold_getter.georep_to_flatrep(
             batch=node2graph,
             atom_types=types_out,
