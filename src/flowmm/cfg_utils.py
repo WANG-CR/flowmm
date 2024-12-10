@@ -13,8 +13,8 @@ from torch_geometric.loader import DataLoader
 from flowmm.model.eval_utils import get_loaders
 
 # dataset_options = Literal["carbon", "mp_20", "mpts_52", "perov", "mp20_llama", "2DGraphene"]
-dataset_options = Literal["carbon", "mp_20", "mpts_52", "perov", "2DGraphene"]
-# dataset_options = Literal["2DGraphene"]
+# dataset_options = Literal["carbon", "mp_20", "mpts_52", "perov", "2DGraphene", "2DMoS2", "2DGraphene3x3"]
+dataset_options = Literal["2DGraphene3x3"]
 
 def init_cfg(
     overrides: list[str] = [],

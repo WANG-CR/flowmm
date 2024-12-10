@@ -342,35 +342,35 @@ if __name__ == "__main__":
                 with open(file, "w") as f:
                     yaml.dump({k: v.tolist() for k, v in stats.items()}, f)
 
-                # spd_euclidean_geo
-                stats = compute_affine_stats(
-                    dataset=dataset,
-                    collect_stats_on=collect_stats_on,
-                    atom_type_manifold="null_manifold",
-                    coord_manifold="flat_torus_01_fixfirst",
-                    lattice_manifold="spd_euclidean_geo",
-                )
-                file = Path(__file__).parent / get_affine_stats_filename(
-                    dataset, "spd_euclidean_geo"
-                )
-                file = file.resolve()
-                with open(file, "w") as f:
-                    yaml.dump({k: v.tolist() for k, v in stats.items()}, f)
+                # # spd_euclidean_geo
+                # stats = compute_affine_stats(
+                #     dataset=dataset,
+                #     collect_stats_on=collect_stats_on,
+                #     atom_type_manifold="null_manifold",
+                #     coord_manifold="flat_torus_01_fixfirst",
+                #     lattice_manifold="spd_euclidean_geo",
+                # )
+                # file = Path(__file__).parent / get_affine_stats_filename(
+                #     dataset, "spd_euclidean_geo"
+                # )
+                # file = file.resolve()
+                # with open(file, "w") as f:
+                #     yaml.dump({k: v.tolist() for k, v in stats.items()}, f)
 
-                # spd_riemanian_geo
-                stats = compute_affine_stats(
-                    dataset=dataset,
-                    collect_stats_on=collect_stats_on,
-                    atom_type_manifold="null_manifold",
-                    coord_manifold="flat_torus_01_fixfirst",
-                    lattice_manifold="spd_riemanian_geo",
-                )
-                file = Path(__file__).parent / get_affine_stats_filename(
-                    dataset, "spd_riemanian_geo"
-                )
-                file = file.resolve()
-                with open(file, "w") as f:
-                    yaml.dump({k: v.tolist() for k, v in stats.items()}, f)
+                # # spd_riemanian_geo
+                # stats = compute_affine_stats(
+                #     dataset=dataset,
+                #     collect_stats_on=collect_stats_on,
+                #     atom_type_manifold="null_manifold",
+                #     coord_manifold="flat_torus_01_fixfirst",
+                #     lattice_manifold="spd_riemanian_geo",
+                # )
+                # file = Path(__file__).parent / get_affine_stats_filename(
+                #     dataset, "spd_riemanian_geo"
+                # )
+                # file = file.resolve()
+                # with open(file, "w") as f:
+                #     yaml.dump({k: v.tolist() for k, v in stats.items()}, f)
 
                 # lattice_params
                 stats = compute_affine_stats(

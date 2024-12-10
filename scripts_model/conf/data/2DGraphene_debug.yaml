@@ -1,9 +1,9 @@
-dataset_name: perov
-load_hamiltonian: false
-isFolder: false
+dataset_name: 2DGraphene
+load_hamiltonian: true
+isFolder: true
 dim_coords: 3
-root_path: ${oc.env:PROJECT_ROOT}/data/perov_5
-prop: heat_ref
+root_path: /data/chuanrui/data/crystal/graphene_3x3_cif_ham
+prop: energy_per_atom
 num_targets: 1
 # prop: scaled_lattice
 # num_targets: 6
@@ -13,28 +13,28 @@ graph_method: crystalnn
 lattice_scale_method: scale_length
 preprocess_workers: 30
 readout: mean
-max_atoms: 20
+max_atoms: 18
 otf_graph: false
-eval_model_name: perovskite
-tolerance: 0.01
+eval_model_name: carbon
+tolerance: 0.1
 
 use_space_group: false
 use_pos_index: false
-
-train_max_epochs: 6000
+train_max_epochs: 20
 early_stopping_patience: 100000
-teacher_forcing_max_epoch: 1500
+teacher_forcing_max_epoch: 1000
 
 
 datamodule:
-  _target_: diffcsp.pl_data.datamodule.CrystDataModule
+  _target_: diffcsp.pl_data.datamodule.Cryst2DDataModule
 
   datasets:
     train:
-      _target_: diffcsp.pl_data.dataset.CrystDataset
+      _target_: diffcsp.pl_data.dataset.Cryst2DDataset
       name: Formation energy train
-      path: ${data.root_path}/train.csv
-      save_path: ${data.root_path}/train_ori.pt
+      path: ${data.root_path}
+      stage: train
+      save_path: ${data.root_path}/train.pt
       prop: ${data.prop}
       niggli: ${data.niggli}
       primitive: ${data.primitive}
@@ -48,9 +48,10 @@ datamodule:
       isFolder: ${data.isFolder}
 
     val:
-      - _target_: diffcsp.pl_data.dataset.CrystDataset
+      - _target_: diffcsp.pl_data.dataset.Cryst2DDataset
         name: Formation energy val
-        path: ${data.root_path}/val.csv
+        path: ${data.root_path}
+        stage: valid
         save_path: ${data.root_path}/val_ori.pt
         prop: ${data.prop}
         niggli: ${data.niggli}
@@ -65,9 +66,10 @@ datamodule:
         isFolder: ${data.isFolder}
 
     test:
-      - _target_: diffcsp.pl_data.dataset.CrystDataset
+      - _target_: diffcsp.pl_data.dataset.Cryst2DDataset
         name: Formation energy test
-        path: ${data.root_path}/test.csv
+        path: ${data.root_path}
+        stage: valid
         save_path: ${data.root_path}/test_ori.pt
         prop: ${data.prop}
         niggli: ${data.niggli}
@@ -82,11 +84,11 @@ datamodule:
         isFolder: ${data.isFolder}
 
   num_workers:
-    train: 40
-    val: 40
-    test: 40
+    train: 2
+    val: 2
+    test: 2
 
   batch_size:
-    train: 1024
-    val: 8192
-    test: 8192
+    train: 32 
+    val: 32
+    test: 16
