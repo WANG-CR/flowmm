@@ -54,6 +54,8 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         self.cfg = cfg
         self.save_hyperparameters()
 
+        self.load_hamiltonian=cfg.data.get("load_hamiltonian", False)
+
         self.manifold_getter = ManifoldGetter(
             atom_type_manifold=cfg.model.manifold_getter.atom_type_manifold,
             coord_manifold=cfg.model.manifold_getter.coord_manifold,
@@ -98,6 +100,7 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         model: CSPNet = hydra.utils.instantiate(
             self.cfg.vectorfield, _convert_="partial"
         )
+        # pdb.set_trace()
         # Model of the vector field.
         if cfg.model.manifold_getter.lattice_manifold=="length_angle_point_manifold":
             cspnet = ProjectedConjugatedCSPNet(
@@ -225,6 +228,20 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         else:
             x0 = x0.to(x1)
 
+        if self.load_hamiltonian:
+            edge_index = batch.edge_index
+            to_jimages = batch.to_jimages
+            hamiltonian = batch.hamiltonian
+        else:
+            edge_index = None
+            to_jimages = None
+            hamiltonian = None
+            # edge_index: None,
+            # to_jimages: None,
+            # hamiltonian: None,
+        # pdb.set_trace()
+
+        # pdb.set_trace()
         return self.finish_sampling(
             x0=x0,
             manifold=manifold,
@@ -237,6 +254,9 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
             mask_a_or_f=mask_a_or_f,
             num_steps=num_steps,
             entire_traj=entire_traj,
+            edge_index=edge_index,
+            to_jimages=to_jimages,
+            hamiltonian=hamiltonian,
         )
 
     @torch.no_grad()
@@ -310,6 +330,7 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         else:
             x0 = x0.to(device=node2graph.device)
 
+
         return self.finish_sampling(
             x0=x0,
             manifold=manifold,
@@ -338,6 +359,9 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         mask_a_or_f: torch.BoolTensor,
         num_steps: int,
         entire_traj: bool,
+        edge_index: None,
+        to_jimages: None,
+        hamiltonian: None,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         vecfield = partial(
             self.vecfield,
@@ -345,6 +369,9 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
             node2graph=node2graph,
             dims=dims,
             mask_a_or_f=mask_a_or_f,
+            edge_index=edge_index,
+            to_jimages=to_jimages,
+            hamiltonian=hamiltonian,
         )
 
         compute_traj_velo_norms = self.cfg.integrate.get(
@@ -368,7 +395,7 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         )
 
         def scheduled_fn_to_integrate(
-            t: torch.Tensor, x: torch.Tensor, cond: torch.Tensor | None = None
+            t: torch.Tensor, x: torch.Tensor, cond: torch.Tensor | None = None,
         ) -> torch.Tensor:
             anneal_factor = self._annealing_schedule(t, c, b)
             out = vecfield(
@@ -599,12 +626,17 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
             else:
                 x0 = manifold.random(*x1.shape, dtype=x1.dtype, device=x1.device)
 
+        # pdb.set_trace()
+        
         vecfield = partial(
             self.vecfield,
             num_atoms=batch.num_atoms,
             node2graph=batch.batch,
             dims=dims,
             mask_a_or_f=mask_a_or_f,
+            edge_index=batch.edge_index if hasattr(batch, 'edge_index') else None,
+            to_jimages=batch.to_jimages if hasattr(batch, 'to_jimages') else None,
+            hamiltonian=batch.hamiltonian if hasattr(batch, 'hamiltonian') else None,
         )
 
         N = x1.shape[0]
@@ -621,7 +653,10 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         # our model cannot predict it, so keeping it in inflates the loss
         u_t = manifold.proju(x_t, u_t)
 
+        # x0 shape is [32,1860], only graph features
+        # we want to input 
         # pdb.set_trace()
+        
 
         cond = None
         if self.cfg.model.self_cond:
@@ -638,7 +673,18 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
                         t,
                     ).detach_()
 
+        # if not self.load_hamiltonian:
         u_t_pred = vecfield(t=t, x=x_t, manifold=manifold, cond=cond)
+        # else:
+        #     u_t_pred = vecfield(
+        #         t=t,
+        #         x=x_t,
+        #         manifold=manifold,
+        #         cond=cond,
+        #         edge_index=batch.edge_index if hasattr(batch, 'edge_index') else None,
+        #         to_jimages=batch.to_jimages if hasattr(batch, 'to_jimages') else None,
+        #         hamiltonian=batch.hamiltonian if hasattr(batch, 'hamiltonian') else None,
+        #     )
         diff = u_t_pred - u_t
 
         # pdb.set_trace()
@@ -824,18 +870,22 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         else:
             x0 = None
 
+        # pdb.set_trace()
         if self.cfg.integrate.get("compute_traj_velo_norms", False):
             recon, norms_a, norms_f, norms_l = self.sample(
                 batch, num_steps=num_steps, x0=x0
             )
             norms = {"norms_a": norms_a, "norms_f": norms_f, "norms_l": norms_l}
+            # pdb.set_trace()
         else:
             recon = self.sample(batch, num_steps=num_steps, x0=x0)
             norms = {}
+            # pdb.set_trace()
         atom_types, frac_coords, lattices = self.manifold_getter.flatrep_to_crystal(
             recon, dims, mask_a_or_f
         )
         lengths, angles = lattices_to_params_shape(lattices)
+        # pdb.set_trace()
         out = {
             "atom_types": atom_types,
             "frac_coords": frac_coords,
@@ -1066,6 +1116,7 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
             test_metric.reset()
 
     def predict_step(self, batch: Any, batch_idx: int):
+        # pdb.set_trace()
         if not hasattr(batch, "frac_coords"):
             if "null" in self.cfg.model.manifold_getter.atom_type_manifold:
                 if self.cfg.integrate.get("entire_traj", False):
@@ -1091,12 +1142,15 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
                     )
         else:
             # not generating or predicting new structures
+            # pdb.set_trace()
             if self.cfg.integrate.get("entire_traj", False):
+                # pdb.set_trace()
                 return self.compute_recon_trajectory(
                     batch,
                     num_steps=self.cfg.integrate.get("num_steps", 1_000),
                 )
             else:
+                # pdb.set_trace()
                 return self.compute_reconstruction(
                     batch,
                     num_steps=self.cfg.integrate.get("num_steps", 1_000),
