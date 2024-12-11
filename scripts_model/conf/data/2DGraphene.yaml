@@ -1,4 +1,6 @@
 dataset_name: 2DGraphene
+load_hamiltonian: false
+isFolder: false
 dim_coords: 3
 root_path: /data/chuanrui/data/crystal/cif/graphene
 prop: energy_per_atom
@@ -42,6 +44,8 @@ datamodule:
       use_pos_index: ${data.use_pos_index}
       lattice_scale_method: ${data.lattice_scale_method}
       preprocess_workers: ${data.preprocess_workers}
+      load_hamiltonian: ${data.load_hamiltonian}
+      isFolder: ${data.isFolder}
 
     val:
       - _target_: diffcsp.pl_data.dataset.Cryst2DDataset
@@ -58,6 +62,8 @@ datamodule:
         use_pos_index: ${data.use_pos_index}
         lattice_scale_method: ${data.lattice_scale_method}
         preprocess_workers: ${data.preprocess_workers}
+        load_hamiltonian: ${data.load_hamiltonian}
+        isFolder: ${data.isFolder}
 
     test:
       - _target_: diffcsp.pl_data.dataset.Cryst2DDataset
@@ -74,6 +80,8 @@ datamodule:
         use_pos_index: ${data.use_pos_index}
         lattice_scale_method: ${data.lattice_scale_method}
         preprocess_workers: ${data.preprocess_workers}
+        load_hamiltonian: ${data.load_hamiltonian}
+        isFolder: ${data.isFolder}
 
   num_workers:
     train: 40

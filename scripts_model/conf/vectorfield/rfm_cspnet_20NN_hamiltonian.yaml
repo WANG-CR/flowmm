@@ -17,5 +17,3 @@ represent_num_atoms: true
 represent_angle_edge_to_lattice: true
 self_edges: false
 self_cond: ${model.self_cond}
-load_hamiltonian: ${data.load_hamiltonian}
-hamiltonian_embed_dim: 32
