@@ -5,7 +5,6 @@ import resource
 from pathlib import Path
 from typing import List
 
-import torch
 import hydra
 import numpy as np
 import omegaconf
@@ -18,11 +17,13 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.profilers import SimpleProfiler
 
 import wandb
 from diffcsp.common.utils import log_hyperparameters
 from flowmm.model.eval_utils import register_omega_conf_resolvers
 from flowmm.model.model_pl import MaterialsRFMLitModule
+import pdb
 
 # https://github.com/Project-MONAI/MONAI/issues/701#issuecomment-767330310
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
@@ -96,7 +97,6 @@ def run(cfg: DictConfig) -> None:
 
     :param cfg: run configuration, defined by Hydra in /conf
     """
-    torch.multiprocessing.set_sharing_strategy('file_system')
     if cfg.train.deterministic:
         seed_everything(cfg.train.random_seed)
 
@@ -124,6 +124,38 @@ def run(cfg: DictConfig) -> None:
     datamodule: pl.LightningDataModule = hydra.utils.instantiate(
         cfg.data.datamodule, _recursive_=False
     )
+
+    # Prepare the datamodule
+    datamodule.setup(stage='fit')  # or 'test' depending on the phase you want to debug
+
+    # Choose the dataloader you want to debug
+    dataloader = datamodule.train_dataloader()
+    pdb.set_trace() 
+    # Iterate through the batches
+    for idx, batch in enumerate(dataloader):
+        print(f"Batch {idx + 1}")
+    
+        # Check the type of batch (common in PyG)
+
+        #     print("Node features:", batch.x)
+        #     print("Edge indices:", batch.edge_index)
+        #     print("Edge attributes:", batch.edge_attr if 'edge_attr' in batch else None)
+        #     print("Graph labels:", batch.y if 'y' in batch else None)
+        #     print("Batch vector (graph mapping):", batch.batch if 'batch' in batch else None)
+        # else:
+        #     # If the batch is a plain dictionary or tensor, print it directly
+        #     print(batch)
+        
+        # # Visualize (example for PyG)
+        # if hasattr(batch, 'x') and batch.x is not None:
+        #     num_nodes = batch.x.size(0)
+        #     plt.scatter(batch.x[:, 0].cpu(), batch.x[:, 1].cpu())
+        #     plt.title(f"Batch {idx + 1} - {num_nodes} Nodes")
+        #     plt.show()
+        
+        # # Break after visualizing a few batches
+        # if idx == 2:  # Limit to first 3 batches for inspection
+        #     break
 
     # Instantiate model
     get_model = MaterialsRFMLitModule
@@ -191,6 +223,7 @@ def run(cfg: DictConfig) -> None:
         check_val_every_n_epoch=cfg.logging.val_check_interval,
         # progress_bar_refresh_rate=cfg.logging.progress_bar_refresh_rate,
         resume_from_checkpoint=ckpt,
+        # profiler=SimpleProfiler(),
         **cfg.train.pl_trainer,
     )
 
