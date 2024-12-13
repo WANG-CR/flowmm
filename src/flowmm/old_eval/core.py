@@ -8,7 +8,7 @@ import os
 import sys
 from collections import Counter
 from pathlib import Path
-
+import h5py
 import numpy as np
 import pandas as pd
 import torch
@@ -60,6 +60,11 @@ class Crystal(object):
         self.angles = crys_array_dict["angles"].squeeze()
         assert self.lengths.ndim == 1
         self.dict = crys_array_dict
+
+        # Load optional features
+        self.edge_index = crys_array_dict.get("edge_index", None)
+        self.to_jimages = crys_array_dict.get("to_jimages", None)
+        self.hamiltonian = crys_array_dict.get("hamiltonian", None)
 
         self.get_structure()
         if self.constructed:
@@ -141,6 +146,50 @@ class Crystal(object):
             return
         self.struct_fp = np.array(site_fps).mean(axis=0)
 
+    def construct_hamiltonian_mapping(self):
+        """
+        Constructs a mapping of (key, value) pairs where:
+        - `key` is the concatenation of `edge_index` (1-based) and `to_jimages`.
+        - `value` is the corresponding `hamiltonian` matrix.
+
+        Returns:
+            dict: A dictionary with keys as tuples (i, j, jimage_x, jimage_y, jimage_z)
+                and values as the corresponding hamiltonian matrix.
+        """
+
+        hamiltonian_mapping = {}
+        for edge, jimage, hamiltonian in zip(
+            self.edge_index.T, self.to_jimages, self.hamiltonian
+        ):
+            key = tuple(jimage.tolist()+edge.tolist())  # Add 1 for 1-based indexing
+            hamiltonian_mapping[key] = hamiltonian
+            # pdb.set_trace()
+        return hamiltonian_mapping
+
+    def save_hamiltonian_to_hdf5(self, file_path: str):
+        """
+        Saves the Hamiltonian mapping to an HDF5 file.
+
+        Args:
+            file_path (str): Path to save the HDF5 file.
+
+        Raises:
+            ValueError: If Hamiltonian mapping is missing.
+        """
+        if self.edge_index is None or self.to_jimages is None or self.hamiltonian is None:
+            return
+
+        # Construct the Hamiltonian mapping
+        hamiltonian_mapping = self.construct_hamiltonian_mapping()
+
+        # Save the Hamiltonian mapping to an HDF5 file
+        with h5py.File(file_path, "w") as h5file:
+            for key, value in hamiltonian_mapping.items():
+                # Convert the key to a JSON-compatible format
+                json_key = json.dumps([key[0], key[1], key[2], key[3] + 1, key[4] + 1])
+                h5file.create_dataset(json_key, data=value)
+
+        print(f"Hamiltonian mapping saved to {file_path}")
 
 def get_file_paths(root_path, task, label="", suffix="pt"):
     if label == "":
@@ -158,6 +207,8 @@ def get_crystal_array_list(
     """batch_idx == -1, diffcsp format
     batch_idx == -2, cdvae format
     """
+    # pdb.set_trace()
+
     data = load_data(str(file_path.resolve()))
     if batch_idx == -1:
         # batch_size = data["frac_coords"].shape[0]
@@ -195,6 +246,7 @@ def get_crystal_array_list(
             data["num_atoms"][batch_idx],
         )
 
+    # pdb.set_trace()
     if "input_data_batch" in data:
         batch_by_eval = data["input_data_batch"]
         if isinstance(batch_by_eval, dict):
@@ -218,7 +270,11 @@ def get_crystal_array_list(
                 batch_by_eval[0][0], "frac_coords"
             ):
                 true_crystal_array_list = []
-                features = ["frac_coords", "atom_types", "lengths", "angles"]
+
+                if hasattr(batch_by_eval[0][0], "hamiltonian"):
+                    features = ["frac_coords", "atom_types", "lengths", "angles", "edge_index", "to_jimages", "hamiltonian"]
+                else:
+                    features = ["frac_coords", "atom_types", "lengths", "angles"]
 
                 # we collect crystals from the first eval
                 crystals_in_first_eval = batch_by_eval[0]
@@ -356,6 +412,7 @@ def get_Crystal_obj_lists(
         batch_idx=batch_idx,
     )
 
+    # pdb.set_trace()
     if ground_truth_path is not None:
         gt_crys = load_gt_crystals(ground_truth_path)
     else:

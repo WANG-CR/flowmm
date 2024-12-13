@@ -7,7 +7,7 @@ import os
 import numpy as np
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from tqdm import tqdm
-
+import pdb
 from flowmm.old_eval.core import (
     get_Crystal_obj_lists,
     save_metrics_only_overwrite_newly_computed,
@@ -98,12 +98,16 @@ def compute_reconstruction_metrics(
         multi_eval,
         ground_truth_path,
     )
-
+    pdb.set_trace()
     if target_dir:
         cif_path = os.path.join(target_dir, 'cif_recon')
         os.makedirs(cif_path, exist_ok=True)
         for i, crystals in enumerate(pred_crys[0]):
-            crystals.structure.to(f"{cif_path}/{i}.cif")
+            os.makedirs(os.path.join(cif_path, f'{i}'), exist_ok=True)
+            crystals.structure.to(f"{cif_path}/{i}/{i}.cif")
+            gt_crys[i].save_hamiltonian_to_hdf5(f"{cif_path}/{i}/{i}.hamiltonian")
+            # pdb.set_trace()
+            
 
     if multi_eval:
         rec_evaluator = RecEvalBatch(pred_crys, gt_crys)

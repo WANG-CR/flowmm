@@ -29,6 +29,7 @@ from flowmm.model.eval_utils import (
 from flowmm.old_eval.generation_metrics import compute_generation_metrics
 from flowmm.old_eval.lattice_metrics import compute_lattice_metrics
 from flowmm.old_eval.reconstruction_metrics import compute_reconstruction_metrics
+import pdb
 
 TASKS_TYPE = Literal[
     "reconstruct", "recon_trajectory", "generate", "gen_trajectory", "pred"
@@ -214,6 +215,7 @@ def reconstruct(
     cfg.integrate.inference_anneal_coords = inference_anneal_coords
     cfg.integrate.inference_anneal_lattice = inference_anneal_lattice
 
+    # pdb.set_trace()
     loaders = get_loaders(cfg)
     loader = loaders[STAGES.index(stage)]
 
